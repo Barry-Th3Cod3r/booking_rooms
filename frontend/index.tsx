@@ -110,7 +110,7 @@ class ApiClient {
         return this.fetch<Classroom>('/classrooms/', { method: 'POST', body: JSON.stringify(data) });
     }
     async deleteClassroom(id: number): Promise<void> {
-        await this.fetch<void>(`/classrooms/${id}/`, { method: 'DELETE' });
+        await this.fetch<void>(`/classrooms/${id}`, { method: 'DELETE' });
     }
 
     // Bookings
@@ -120,16 +120,16 @@ class ApiClient {
         return this.fetch<Booking>('/bookings/', { method: 'POST', body: JSON.stringify(data) });
     }
     async updateBooking(id: number, data: { classroom_id?: number; start_datetime?: string; end_datetime?: string; subject?: string; description?: string }): Promise<Booking> {
-        return this.fetch<Booking>(`/bookings/${id}/`, { method: 'PUT', body: JSON.stringify(data) });
+        return this.fetch<Booking>(`/bookings/${id}`, { method: 'PUT', body: JSON.stringify(data) });
     }
     async deleteBooking(id: number): Promise<void> {
-        await this.fetch<void>(`/bookings/${id}/`, { method: 'DELETE' });
+        await this.fetch<void>(`/bookings/${id}`, { method: 'DELETE' });
     }
 
     // Users (admin)
     async getUsers(): Promise<User[]> { return this.fetch<User[]>('/users/'); }
     async deleteUser(id: number): Promise<void> {
-        await this.fetch<void>(`/users/${id}/`, { method: 'DELETE' });
+        await this.fetch<void>(`/users/${id}`, { method: 'DELETE' });
     }
 }
 
@@ -591,12 +591,16 @@ const MainPage = ({ classrooms, bookings, setBookings, currentUser, reloadData }
     }, []);
 
     const handleBookingSubmit = async (bookingDetails: any) => {
-        const { classroomId, date, startHour, endHour, teacher, event } = bookingDetails;
+        const { classroomId, date, startHour, endHour, startMinute = '00', endMinute = '00', teacher, event } = bookingDetails;
         if (!classroomId || !date || !startHour || !endHour || !teacher || !event) {
             alert('Please fill in all fields.');
             return;
         }
-        if (parseInt(startHour) >= parseInt(endHour)) {
+
+        // Compare times including minutes
+        const startTotalMinutes = parseInt(startHour) * 60 + parseInt(startMinute);
+        const endTotalMinutes = parseInt(endHour) * 60 + parseInt(endMinute);
+        if (startTotalMinutes >= endTotalMinutes) {
             alert('End time must be after start time.');
             return;
         }
@@ -605,8 +609,8 @@ const MainPage = ({ classrooms, bookings, setBookings, currentUser, reloadData }
         try {
             await api.createBooking({
                 classroom_id: parseInt(classroomId),
-                start_datetime: `${date}T${startHour}:00:00`,
-                end_datetime: `${date}T${endHour}:00:00`,
+                start_datetime: `${date}T${startHour}:${startMinute}:00`,
+                end_datetime: `${date}T${endHour}:${endMinute}:00`,
                 subject: event,
                 description: teacher,
             });
@@ -710,25 +714,44 @@ const MainPage = ({ classrooms, bookings, setBookings, currentUser, reloadData }
 const BookingModal = ({ isOpen, onClose, classrooms, onSubmit, currentUser, submitting }: any) => {
     const [bookingDetails, setBookingDetails] = useState({
         classroomId: '', teacher: currentUser?.full_name || currentUser?.email?.split('@')[0] || '', event: '',
-        date: new Date().toISOString().split('T')[0], startHour: '09', endHour: '10'
+        date: new Date().toISOString().split('T')[0], startTime: '09:00', endTime: '10:00'
     });
     if (!isOpen) return null;
+
+    // Helper function to add 1 hour to a time string
+    const addOneHour = (time: string): string => {
+        const [hours, minutes] = time.split(':').map(Number);
+        const newHours = Math.min(hours + 1, 22);
+        return `${newHours.toString().padStart(2, '0')}:${(minutes || 0).toString().padStart(2, '0')}`;
+    };
 
     const handleInputChange = (e: any) => {
         const { name, value } = e.target;
         setBookingDetails(prev => {
             const updated = { ...prev, [name]: value };
             // Auto-update end time when start time changes
-            if (name === 'startHour') {
-                const nextHour = Math.min(parseInt(value) + 1, 17).toString().padStart(2, '0');
-                updated.endHour = nextHour;
+            if (name === 'startTime') {
+                updated.endTime = addOneHour(value);
             }
             return updated;
         });
     };
 
-    const handleSubmit = (e: any) => { e.preventDefault(); onSubmit(bookingDetails); };
-    const timeOptions = Array.from({ length: 10 }, (_, i) => (i + 8).toString().padStart(2, '0'));
+    const handleSubmit = (e: any) => {
+        e.preventDefault();
+        // Convert time format for the API (keeping startHour/endHour for compatibility)
+        const [startHour, startMin] = bookingDetails.startTime.split(':');
+        const [endHour, endMin] = bookingDetails.endTime.split(':');
+        const submitData = {
+            ...bookingDetails,
+            startHour,
+            endHour,
+            startMinute: startMin || '00',
+            endMinute: endMin || '00'
+        };
+        onSubmit(submitData);
+    };
+
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -739,8 +762,8 @@ const BookingModal = ({ isOpen, onClose, classrooms, onSubmit, currentUser, subm
                     <div className="form-group"><label>Classroom</label><select name="classroomId" value={bookingDetails.classroomId} onChange={handleInputChange} required disabled={submitting}><option value="" disabled>Select...</option>{classrooms.map((cr: any) => <option key={cr.id} value={cr.id}>{cr.name}</option>)}</select></div>
                     <div className="form-group"><label>Date</label><input type="date" name="date" value={bookingDetails.date} onChange={handleInputChange} required disabled={submitting} /></div>
                     <div className="form-group-inline">
-                        <div className="form-group"><label>Start</label><select name="startHour" value={bookingDetails.startHour} onChange={handleInputChange} disabled={submitting}>{timeOptions.map(h => <option key={h} value={h}>{h}:00</option>)}</select></div>
-                        <div className="form-group"><label>End</label><select name="endHour" value={bookingDetails.endHour} onChange={handleInputChange} disabled={submitting}>{timeOptions.map(h => <option key={h} value={h}>{h}:00</option>)}</select></div>
+                        <div className="form-group"><label>Start</label><input type="time" name="startTime" value={bookingDetails.startTime} onChange={handleInputChange} min="07:00" max="22:00" required disabled={submitting} style={{ width: '100%' }} /></div>
+                        <div className="form-group"><label>End</label><input type="time" name="endTime" value={bookingDetails.endTime} onChange={handleInputChange} min="07:00" max="23:00" required disabled={submitting} style={{ width: '100%' }} /></div>
                     </div>
                     <div className="form-actions">
                         <button type="button" className="btn-cancel" onClick={onClose} disabled={submitting}>Cancel</button>
