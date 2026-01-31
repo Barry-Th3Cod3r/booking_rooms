@@ -852,7 +852,23 @@ const SettingsPage = ({ setPage, setLogo, classrooms, setClassrooms, bookings, s
             );
             case 'bookings': return (
                 <div><h3>Manage Bookings</h3>
-                    <ul className="management-list">{bookings.map((b: any) => <li key={b.id}><span>{classrooms.find((c: any) => c.id === b.classroom_id)?.name} - {b.event} @ {b.start?.toLocaleString()}</span><button onClick={() => deleteBooking(b.id)}>Delete</button></li>)}</ul>
+                    <ul className="management-list">{bookings.map((b: any) => {
+                        const classroom = classrooms.find((c: any) => c.id === b.classroom_id);
+                        const bookingUser = users.find((u: any) => u.id === b.user_id);
+                        const userName = bookingUser?.full_name || bookingUser?.email || b.description || 'Unknown';
+                        return (
+                            <li key={b.id}>
+                                <span>
+                                    <strong>{classroom?.name || 'Unknown'}</strong> - {b.subject || b.event}
+                                    <br />
+                                    <small>📅 {b.start?.toLocaleDateString()} {b.start?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {b.end?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                                    <br />
+                                    <small>👤 <em>By: {userName}</em></small>
+                                </span>
+                                <button onClick={() => deleteBooking(b.id)}>Delete</button>
+                            </li>
+                        );
+                    })}</ul>
                 </div>
             );
             case 'users': return (
