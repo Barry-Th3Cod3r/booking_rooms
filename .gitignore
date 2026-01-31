@@ -1,0 +1,55 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.Python
+venv/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Logs
+*.log
+logs/
+
+# Docker volumes (don't commit database data)
+postgres_data/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Misc
+*.bak
+*.tmp
+.cache/
+
+# Secrets and credentials
+*.pem
+*.key
+credentials.json
+
+# Gemini/Antigravity artifacts (development only)
+.gemini/
+frontend.backup/

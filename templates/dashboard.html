@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card shadow">
+    <div class="card-header">
+        <h4 class="mb-0">Panel de Reservas - {{ today }}</h4>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered schedule-table">
+                <thead>
+                    <tr>
+                        <th>Aula</th>
+                        {% for slot in slots %}
+                            <th>{{ slot }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for room_name, room_schedule in schedule.items() %}
+                    <tr>
+                        <td><strong>{{ room_name }}</strong></td>
+                        {% for slot, user in room_schedule.items() %}
+                            {% if slot == "Recreo" %}
+                                <td class="table-secondary"></td>
+                            {% elif user %}
+                                <td class="booked">{{ user }}</td>
+                            {% else %}
+                                <td class="free">
+                                    <form action="{{ url_for('book') }}" method="post" class="d-grid">
+                                        <input type="hidden" name="classroom" value="{{ room_name }}">
+                                        <input type="hidden" name="slot" value="{{ slot }}">
+                                        <input type="hidden" name="date" value="{{ today }}">
+                                        <button type="submit" class="btn btn-sm btn-success">Reservar</button>
+                                    </form>
+                                </td>
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
